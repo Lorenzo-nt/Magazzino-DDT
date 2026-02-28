@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-client';
+import { createClient } from '@supabase/supabase-js';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { jsPDF } from "jspdf";
 
-// Sostituisci questi valori con quelli presi da Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
@@ -21,24 +20,22 @@ export default function MagazzinoCloud() {
       const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
       scanner.render((text) => {
         setScannedData(text);
-        scanner.clear();
-      }, () => {});
-      return () => { scanner.clear().catch(() => {}); };
+        scanner.clear().catch(console.error);
+      }, (err) => { /* Silenzio errori camera */ });
+      return () => { 
+        scanner.clear().catch(() => {}); 
+      };
     }
   }, [user, scannedData]);
 
   const salvaDDT = async () => {
-    if (!user) return;
-
-    // Recupero l'ultimo numero DDT per incrementarlo
+    if (!user || !scannedData) return;
     const { data: ultimi } = await supabase
       .from('documenti_trasporto')
       .select('numero_ddt')
       .order('numero_ddt', { ascending: false })
       .limit(1);
-
     const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
-
     const nuovoDDT = {
       numero_ddt: prossimoNumero,
       prodotto: scannedData,
@@ -46,36 +43,45 @@ export default function MagazzinoCloud() {
       destinazione: form.destinazione,
       utente_email: user.email
     };
-
     const { error } = await supabase.from('documenti_trasporto').insert([nuovoDDT]);
-
     if (error) {
-      alert("Errore nel salvataggio: " + error.message);
+      alert("Errore Supabase: " + error.message);
     } else {
       generaPDF(nuovoDDT);
-      alert("DDT Salvato e PDF in download!");
+      alert("DDT Salvato!");
       setScannedData("");
     }
   };
 
   const generaPDF = (dati: any) => {
     const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text("Documento di Trasporto (DDT)", 20, 20);
-    doc.setFontSize(12);
-    doc.text(`Numero: ${dati.numero_ddt}`, 20, 40);
-    doc.text(`Data: ${new Date().toLocaleDateString()}`, 20, 50);
-    doc.text(`Prodotto: ${dati.prodotto}`, 20, 70);
-    doc.text(`Quantità: ${dati.quantita}`, 20, 80);
-    doc.text(`Destinazione: ${dati.destinazione}`, 20, 90);
-    doc.text(`Operatore: ${dati.utente_email}`, 20, 110);
+    doc.text("Documento di Trasporto", 20, 20);
+    doc.text(`Prodotto: ${dati.prodotto}`, 20, 40);
+    doc.text(`Qta: ${dati.quantita}`, 20, 50);
     doc.save(`DDT_${dati.numero_ddt}.pdf`);
   };
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <h1 className="text-2xl font-bold mb-4">Gestione Magazzino</h1>
-        <button 
-          onClick={() => setUser({ email: "lorenzo@test.it" })}
-          className="bg
+      <div className="flex items-center justify-center min-h-screen">
+        <button onClick={() => setUser({ email: "lorenzo@test.it" })} className="p-4 bg-blue-500 text-white rounded">
+          Accedi come Lorenzo
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4">
+      <h1 className="mb-4">Operatore: {user.email}</h1>
+      {!scannedData ? <div id="reader"></div> : (
+        <div className="border p-4">
+          <p>Scansionato: {scannedData}</p>
+          <input type="number" value={form.qta} onChange={e => setForm({...form, qta: +e.target.value})} className="border m-2 p-1" />
+          <input type="text" placeholder="Destinazione" onChange={e => setForm({...form, destinazione: e.target.value})} className="border m-2 p-1" />
+          <button onClick={salvaDDT} className="bg-green-500 text-white p-2 rounded">Salva</button>
+        </div>
+      )}
+    </div>
+  );
+}
