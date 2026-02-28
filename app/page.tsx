@@ -1,65 +1,81 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
-}
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-client';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { jsPDF } from "jspdf";
+
+// Sostituisci questi valori con quelli presi da Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+);
+
+export default function MagazzinoCloud() {
+  const [user, setUser] = useState<{email: string} | null>(null);
+  const [scannedData, setScannedData] = useState<string>("");
+  const [form, setForm] = useState({ qta: 1, destinazione: "" });
+
+  useEffect(() => {
+    if (user && !scannedData) {
+      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
+      scanner.render((text) => {
+        setScannedData(text);
+        scanner.clear();
+      }, () => {});
+      return () => { scanner.clear().catch(() => {}); };
+    }
+  }, [user, scannedData]);
+
+  const salvaDDT = async () => {
+    if (!user) return;
+
+    // Recupero l'ultimo numero DDT per incrementarlo
+    const { data: ultimi } = await supabase
+      .from('documenti_trasporto')
+      .select('numero_ddt')
+      .order('numero_ddt', { ascending: false })
+      .limit(1);
+
+    const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
+
+    const nuovoDDT = {
+      numero_ddt: prossimoNumero,
+      prodotto: scannedData,
+      quantita: form.qta,
+      destinazione: form.destinazione,
+      utente_email: user.email
+    };
+
+    const { error } = await supabase.from('documenti_trasporto').insert([nuovoDDT]);
+
+    if (error) {
+      alert("Errore nel salvataggio: " + error.message);
+    } else {
+      generaPDF(nuovoDDT);
+      alert("DDT Salvato e PDF in download!");
+      setScannedData("");
+    }
+  };
+
+  const generaPDF = (dati: any) => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text("Documento di Trasporto (DDT)", 20, 20);
+    doc.setFontSize(12);
+    doc.text(`Numero: ${dati.numero_ddt}`, 20, 40);
+    doc.text(`Data: ${new Date().toLocaleDateString()}`, 20, 50);
+    doc.text(`Prodotto: ${dati.prodotto}`, 20, 70);
+    doc.text(`Quantità: ${dati.quantita}`, 20, 80);
+    doc.text(`Destinazione: ${dati.destinazione}`, 20, 90);
+    doc.text(`Operatore: ${dati.utente_email}`, 20, 110);
+    doc.save(`DDT_${dati.numero_ddt}.pdf`);
+  };
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <h1 className="text-2xl font-bold mb-4">Gestione Magazzino</h1>
+        <button 
+          onClick={() => setUser({ email: "lorenzo@test.it" })}
+          className="bg
