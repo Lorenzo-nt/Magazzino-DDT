@@ -30,14 +30,6 @@ export default function MagazzinoCloud() {
 
   const salvaDDT = async () => {
     if (!user || !scannedData) return;
-    const { data: ultimi } = await supabase
-      .from('documenti_trasporto')
-      .select('numero_ddt')
-      .order('numero_ddt', { ascending: false })
-      .limit(1);
-    const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
-    const salvaDDT = async () => {
-    if (!user || !scannedData) return;
 
     // 1. Recupero l'ultimo numero DDT
     const { data: ultimi } = await supabase
@@ -48,10 +40,25 @@ export default function MagazzinoCloud() {
 
     const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
 
-    // 2. Preparo l'oggetto con i nomi colonne corretti
+    // 2. Preparo l'oggetto (nomi colonne identici a database)
     const nuovoDDT = {
       numero_ddt: prossimoNumero,
       prodotto: scannedData,
+      quantita: Number(form.qta),
+      destinazione: form.destinazione,
+      utente_email: user.email
+    };
+
+    // 3. Invio i dati a Supabase
+    const { error } = await supabase.from('documenti_trasporto').insert([nuovoDDT]);
+    if (error) {
+      alert("Errore Supabase: " + error.message);
+    } else {
+      generaPDF(nuovoDDT);
+      alert("DDT Salvato!");
+      setScannedData("");
+    }
+  };
       quantita: Number(form.qta),
       destinazione: form.destinazione,
       utente_email: user.email
