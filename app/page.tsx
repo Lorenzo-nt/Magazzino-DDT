@@ -37,12 +37,12 @@ export default function MagazzinoCloud() {
       .limit(1);
     const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
     const nuovoDDT = {
-      numero_ddt: prossimoNumero,
-      prodotto: scannedData,
-      quantita: form.qta,
-      destinazione: form.destinazione,
-      utente_email: user.email
-    };
+  numero_ddt: prossimoNumero,
+  prodotto: scannedData,
+  quantita: Number(form.qta), // <-- Questo "Number" trasforma la parola in numero vero
+  destinazione: form.destinazione,
+  utente_email: user.email
+};;
     const { error } = await supabase.from('documenti_trasporto').insert([nuovoDDT]);
     if (error) {
       alert("Errore Supabase: " + error.message);
