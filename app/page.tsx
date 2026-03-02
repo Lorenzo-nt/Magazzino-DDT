@@ -36,16 +36,38 @@ export default function MagazzinoCloud() {
       .order('numero_ddt', { ascending: false })
       .limit(1);
     const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
+    const salvaDDT = async () => {
+    if (!user || !scannedData) return;
+
+    // 1. Recupero l'ultimo numero DDT
+    const { data: ultimi } = await supabase
+      .from('documenti_trasporto')
+      .select('numero_ddt')
+      .order('numero_ddt', { ascending: false })
+      .limit(1);
+
+    const prossimoNumero = ultimi && ultimi[0] ? ultimi[0].numero_ddt + 1 : 1;
+
+    // 2. Preparo l'oggetto con i nomi colonne corretti
     const nuovoDDT = {
-  numero_ddt: prossimoNumero,
-  prodotto: scannedData,
-  quantita: Number(form.qta), // <-- Questo "Number" trasforma la parola in numero vero
-  destinazione: form.destinazione,
-  utente_email: user.email
-};;
+      numero_ddt: prossimoNumero,
+      prodotto: scannedData,
+      quantita: Number(form.qta),
+      destinazione: form.destinazione,
+      utente_email: user.email
+    };
+
+    // 3. Invio i dati (Riga 46 corretta senza simboli extra)
     const { error } = await supabase.from('documenti_trasporto').insert([nuovoDDT]);
+
     if (error) {
       alert("Errore Supabase: " + error.message);
+    } else {
+      generaPDF(nuovoDDT);
+      alert("DDT Salvato!");
+      setScannedData("");
+    }
+  };
     } else {
       generaPDF(nuovoDDT);
       alert("DDT Salvato!");
