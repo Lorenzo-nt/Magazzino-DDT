@@ -58,7 +58,6 @@ export default function MagazzinoCloud() {
       alert("DDT Salvato!");
       setScannedData("");
     }
-  };
       quantita: Number(form.qta),
       destinazione: form.destinazione,
       utente_email: user.email
