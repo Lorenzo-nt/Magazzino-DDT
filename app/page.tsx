@@ -55,7 +55,7 @@ export default function MagazzinoCloud() {
 
   const generaPDF = (dati: any) => {
     const doc = new jsPDF();
-    doc.text("Documento di Trasporto", 20, 20);
+    doc.text("documenti_trasporto", 20, 20);
     doc.text(`Prodotto: ${dati.prodotto}`, 20, 40);
     doc.text(`Qta: ${dati.quantita}`, 20, 50);
     doc.save(`DDT_${dati.numero_ddt}.pdf`);
