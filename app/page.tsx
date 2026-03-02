@@ -51,7 +51,15 @@ export default function MagazzinoCloud() {
 
     // 3. Invio i dati a Supabase
     const { error } = await supabase.from('documenti_trasporto').insert([nuovoDDT]);
+
     if (error) {
+      alert("Errore Supabase: " + error.message);
+    } else {
+      generaPDF(nuovoDDT);
+      alert("DDT Salvato!");
+      setScannedData("");
+    }
+  };
       alert("Errore Supabase: " + error.message);
     } else {
       generaPDF(nuovoDDT);
